@@ -45,7 +45,7 @@ client.track(
 
 ```python
 client.identify(
-    user_id="user_123",
+    distinct_id="user_123",
     options={
         "traits": {
             "email": "user@example.com",

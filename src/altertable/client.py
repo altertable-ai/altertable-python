@@ -18,6 +18,15 @@ class NetworkError(AltertableError):
 
 class Altertable:
     def __init__(self, api_key: str, server_url: str = "https://api.altertable.ai", environment: str = "production", timeout: int = 10000):
+        """
+        Initialize the Altertable client.
+
+        :param api_key: API key used to authenticate with the Altertable API.
+        :param server_url: Base URL of the Altertable API server.
+        :param environment: Environment name (for example, "production" or "staging").
+        :param timeout: Request timeout in milliseconds. This value is converted to seconds
+                        before being passed to the underlying `requests` session.
+        """
         self.api_key = api_key
         self.server_url = server_url.rstrip("/")
         self.environment = environment
