@@ -17,18 +17,19 @@ class NetworkError(AltertableError):
         self.cause = cause
 
 class Altertable:
-    def __init__(self, api_key: str, server_url: str = "https://api.altertable.ai", timeout: int = 10000):
+    def __init__(self, api_key: str, server_url: str = "https://api.altertable.ai", environment: str = "production", timeout: int = 10000):
         self.api_key = api_key
         self.server_url = server_url.rstrip("/")
+        self.environment = environment
         self.timeout = timeout / 1000.0
         self.session = requests.Session()
         self.session.headers.update({"X-API-Key": self.api_key, "Content-Type": "application/json"})
 
     def _get_timestamp(self, timestamp: Optional[Union[str, int]] = None) -> str:
         if timestamp is None:
-            return datetime.datetime.now(datetime.timezone.utc).isoformat()
+            return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         if isinstance(timestamp, int):
-            return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).isoformat()
+            return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         return timestamp
 
     def _post(self, endpoint: str, payload: Dict[str, Any]):
@@ -49,6 +50,7 @@ class Altertable:
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
             "event": event,
+            "environment": options.get("environment", self.environment),
             "distinct_id": distinct_id,
             "properties": options.get("properties", {})
         }
@@ -56,8 +58,6 @@ class Altertable:
             payload["anonymous_id"] = options["anonymous_id"]
         if "device_id" in options:
             payload["device_id"] = options["device_id"]
-        if "environment" in options:
-            payload["environment"] = options["environment"]
             
         return self._post("/track", payload)
 
@@ -65,6 +65,7 @@ class Altertable:
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
+            "environment": options.get("environment", self.environment),
             "distinct_id": user_id,
         }
         if "traits" in options:
@@ -73,8 +74,6 @@ class Altertable:
             payload["anonymous_id"] = options["anonymous_id"]
         if "device_id" in options:
             payload["device_id"] = options["device_id"]
-        if "environment" in options:
-            payload["environment"] = options["environment"]
 
         return self._post("/identify", payload)
 
@@ -82,10 +81,9 @@ class Altertable:
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
+            "environment": options.get("environment", self.environment),
             "distinct_id": distinct_id,
             "new_user_id": new_user_id,
         }
-        if "environment" in options:
-            payload["environment"] = options["environment"]
 
         return self._post("/alias", payload)
