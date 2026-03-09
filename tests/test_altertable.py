@@ -19,7 +19,7 @@ def test_track(client):
 
 def test_identify(client):
     response = client.identify(
-        user_id="user_123",
+        distinct_id="user_123",
         options={"traits": {"email": "test@example.com"}}
     )
     assert response.get("ok") is True

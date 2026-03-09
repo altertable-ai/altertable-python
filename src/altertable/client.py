@@ -61,12 +61,12 @@ class Altertable:
             
         return self._post("/track", payload)
 
-    def identify(self, user_id: str, options: Optional[Dict[str, Any]] = None):
+    def identify(self, distinct_id: str, options: Optional[Dict[str, Any]] = None):
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
             "environment": options.get("environment", self.environment),
-            "distinct_id": user_id,
+            "distinct_id": distinct_id,
         }
         if "traits" in options:
             payload["traits"] = options["traits"]
