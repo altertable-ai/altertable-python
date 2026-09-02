@@ -1,6 +1,6 @@
 import datetime
 import requests
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
 class AltertableError(Exception):
     pass
@@ -41,7 +41,7 @@ class Altertable:
             return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         return timestamp
 
-    def _post(self, endpoint: str, payload: Dict[str, Any]):
+    def _post(self, endpoint: str, payload: Union[Dict[str, Any], List[Dict[str, Any]]]):
         try:
             response = self.session.post(f"{self.server_url}{endpoint}", json=payload, timeout=self.timeout)
             if not response.ok:
@@ -70,6 +70,10 @@ class Altertable:
             
         return self._post("/track", payload)
 
+    def track_batch(self, payloads: List[Dict[str, Any]]):
+        """Send caller-supplied track payloads as one request without chunking."""
+        return self._post("/track", payloads)
+
     def identify(self, distinct_id: str, options: Optional[Dict[str, Any]] = None):
         options = options or {}
         payload = {
@@ -86,6 +90,10 @@ class Altertable:
 
         return self._post("/identify", payload)
 
+    def identify_batch(self, payloads: List[Dict[str, Any]]):
+        """Send caller-supplied identify payloads as one request without chunking."""
+        return self._post("/identify", payloads)
+
     def alias(self, distinct_id: str, new_user_id: str, options: Optional[Dict[str, Any]] = None):
         options = options or {}
         payload = {
@@ -96,3 +104,7 @@ class Altertable:
         }
 
         return self._post("/alias", payload)
+
+    def alias_batch(self, payloads: List[Dict[str, Any]]):
+        """Send caller-supplied alias payloads as one request without chunking."""
+        return self._post("/alias", payloads)

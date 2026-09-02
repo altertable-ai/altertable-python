@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+* **api:** add native server batch pass-through and align with client specs v0.13.0
+
 ## [0.2.0](https://github.com/altertable-ai/altertable-python/compare/altertable-v0.1.0...altertable-v0.2.0) (2026-03-09)
 
 
