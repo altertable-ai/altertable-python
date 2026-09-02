@@ -47,13 +47,13 @@ Server applications can submit a caller-managed batch directly. The SDK does
 not impose a client-side batch-size limit.
 
 ```python
-client.track_batch([
+client.track([
     {"event": "button_clicked", "distinct_id": "user_123", "environment": "production"},
     {"event": "checkout_started", "distinct_id": "user_123", "environment": "production"},
 ])
 ```
 
-`identify_batch` and `alias_batch` provide the same pass-through behavior.
+Pass arrays to `identify` and `alias` for the same pass-through behavior.
 
 ### Identifying Users
 

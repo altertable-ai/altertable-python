@@ -32,7 +32,7 @@ def test_alias(client):
     )
     assert response.get("ok") is True
 
-def test_track_batch_passes_all_payloads_through_without_chunking():
+def test_track_overload_passes_all_payloads_through_without_chunking():
     client = Altertable("test_pk_abc123", server_url=MOCK_BASE_URL)
     response = Mock(ok=True)
     response.json.return_value = {"ok": True}
@@ -42,8 +42,20 @@ def test_track_batch_passes_all_payloads_through_without_chunking():
         for index in range(101)
     ]
 
-    assert client.track_batch(payloads) == {"ok": True}
+    assert client.track(payloads) == {"ok": True}
     client.session.post.assert_called_once()
+    assert client.session.post.call_args.kwargs["json"] == payloads
+
+@pytest.mark.parametrize("method_name, endpoint", [("identify", "/identify"), ("alias", "/alias")])
+def test_other_batch_overloads_pass_payloads_through(method_name, endpoint):
+    client = Altertable("test_pk_abc123", server_url=MOCK_BASE_URL)
+    response = Mock(ok=True)
+    response.json.return_value = {"ok": True}
+    client.session.post = Mock(return_value=response)
+    payloads = [{"distinct_id": "user-1", "environment": "test"}]
+
+    assert getattr(client, method_name)(payloads) == {"ok": True}
+    assert client.session.post.call_args.args[0] == f"{MOCK_BASE_URL}{endpoint}"
     assert client.session.post.call_args.kwargs["json"] == payloads
 
 def test_authentication_error():

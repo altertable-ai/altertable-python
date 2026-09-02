@@ -54,7 +54,12 @@ class Altertable:
         except requests.exceptions.RequestException as e:
             raise NetworkError("Network request failed", e)
 
-    def track(self, event: str, distinct_id: str, options: Optional[Dict[str, Any]] = None):
+    def track(self, event: Union[str, List[Dict[str, Any]]], distinct_id: Optional[str] = None, options: Optional[Dict[str, Any]] = None):
+        if isinstance(event, list):
+            return self._post("/track", event)
+        if distinct_id is None:
+            raise TypeError("distinct_id is required when tracking one event")
+
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
@@ -70,11 +75,10 @@ class Altertable:
             
         return self._post("/track", payload)
 
-    def track_batch(self, payloads: List[Dict[str, Any]]):
-        """Send caller-supplied track payloads as one request without chunking."""
-        return self._post("/track", payloads)
+    def identify(self, distinct_id: Union[str, List[Dict[str, Any]]], options: Optional[Dict[str, Any]] = None):
+        if isinstance(distinct_id, list):
+            return self._post("/identify", distinct_id)
 
-    def identify(self, distinct_id: str, options: Optional[Dict[str, Any]] = None):
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
@@ -90,11 +94,12 @@ class Altertable:
 
         return self._post("/identify", payload)
 
-    def identify_batch(self, payloads: List[Dict[str, Any]]):
-        """Send caller-supplied identify payloads as one request without chunking."""
-        return self._post("/identify", payloads)
+    def alias(self, distinct_id: Union[str, List[Dict[str, Any]]], new_user_id: Optional[str] = None, options: Optional[Dict[str, Any]] = None):
+        if isinstance(distinct_id, list):
+            return self._post("/alias", distinct_id)
+        if new_user_id is None:
+            raise TypeError("new_user_id is required when aliasing one user")
 
-    def alias(self, distinct_id: str, new_user_id: str, options: Optional[Dict[str, Any]] = None):
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
@@ -104,7 +109,3 @@ class Altertable:
         }
 
         return self._post("/alias", payload)
-
-    def alias_batch(self, payloads: List[Dict[str, Any]]):
-        """Send caller-supplied alias payloads as one request without chunking."""
-        return self._post("/alias", payloads)
