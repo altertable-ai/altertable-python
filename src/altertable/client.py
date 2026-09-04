@@ -1,6 +1,6 @@
 import datetime
 import requests
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
 class AltertableError(Exception):
     pass
@@ -41,7 +41,7 @@ class Altertable:
             return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         return timestamp
 
-    def _post(self, endpoint: str, payload: Dict[str, Any]):
+    def _post(self, endpoint: str, payload: Union[Dict[str, Any], List[Dict[str, Any]]]):
         try:
             response = self.session.post(f"{self.server_url}{endpoint}", json=payload, timeout=self.timeout)
             if not response.ok:
@@ -54,7 +54,12 @@ class Altertable:
         except requests.exceptions.RequestException as e:
             raise NetworkError("Network request failed", e)
 
-    def track(self, event: str, distinct_id: str, options: Optional[Dict[str, Any]] = None):
+    def track(self, event: Union[str, List[Dict[str, Any]]], distinct_id: Optional[str] = None, options: Optional[Dict[str, Any]] = None):
+        if isinstance(event, list):
+            return self._post("/track", event)
+        if distinct_id is None:
+            raise TypeError("distinct_id is required when tracking one event")
+
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
@@ -70,7 +75,10 @@ class Altertable:
             
         return self._post("/track", payload)
 
-    def identify(self, distinct_id: str, options: Optional[Dict[str, Any]] = None):
+    def identify(self, distinct_id: Union[str, List[Dict[str, Any]]], options: Optional[Dict[str, Any]] = None):
+        if isinstance(distinct_id, list):
+            return self._post("/identify", distinct_id)
+
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
@@ -86,7 +94,12 @@ class Altertable:
 
         return self._post("/identify", payload)
 
-    def alias(self, distinct_id: str, new_user_id: str, options: Optional[Dict[str, Any]] = None):
+    def alias(self, distinct_id: Union[str, List[Dict[str, Any]]], new_user_id: Optional[str] = None, options: Optional[Dict[str, Any]] = None):
+        if isinstance(distinct_id, list):
+            return self._post("/alias", distinct_id)
+        if new_user_id is None:
+            raise TypeError("new_user_id is required when aliasing one user")
+
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
