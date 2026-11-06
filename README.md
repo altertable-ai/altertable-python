@@ -59,54 +59,36 @@ are removed before sending, so a batch cannot switch to audience processing.
 
 ### Audience measurement
 
-Use `mode="audience"` to collect events without client identity fields:
+Use an environment-bound Product Analytics API key and `mode="audience"` to collect events without client identity fields:
 
 ```python
 audience = Altertable("your_api_key", mode="audience")
 audience.track(
     "Docs Opened",
-    options={"properties": {"$url": "https://example.com/docs?source=email", "section": "intro"}},
+    options={"properties": {"$url": "https://example.com/docs?source=email"}},
 )
 audience.track([
     {"event": "Install Copied", "properties": {"package": "python"}},
-    {"event": "Docs Opened", "properties": {"$url": "https://example.com/docs"}},
 ])
 ```
 
-Product mode remains the default. `mode` is read-only for a client's lifetime;
-create a new client to change modes. Only `"product"` and `"audience"` are accepted.
+Product mode is the default. Mode is fixed for each client; create a new client to
+change it. Audience events omit user, anonymous, device, session, and environment
+fields, including caller-supplied batch fields. The API key selects the environment;
+legacy unbound keys cannot be used. `identify()` and `alias()` return `None` without
+sending requests and emit a `RuntimeWarning` once per client.
 
-Audience requests contain only `mode: "audience"`, `event`, `timestamp`, and
-`properties`. Both single events and every event in a batch follow this policy,
-even if the caller supplies identity, environment, or a conflicting mode.
-Audience mode requires an API key bound to an environment; that key determines
-the audience environment. Legacy unbound keys cannot select an audience
-environment. Product mode continues to honor the existing `environment` argument and per-event overrides.
+Audience mode removes `$viewport`, reduces `$url` to HTTP(S) origin plus path, and
+reduces `$referer` to origin. Invalid URLs become `None`. Custom properties and URL
+paths can still contain personal information; choose them accordingly.
 
-In audience properties, `$url` is reduced to origin plus path and `$referer` to
-origin only. Credentials, query strings, and fragments are removed; invalid or
-non-HTTP(S) URLs become `None`. `$viewport` is removed. Missing `$url` and
-`$referer` are sent as `None`. Other caller properties are retained, including
-custom identifiers or personal information: review your properties and URL paths
-before sending them. The SDK does not automatically collect browser context or
-extract query parameters. Sanitization copies properties without changing inputs.
+Gate calls on your application's consent decisions. Events are sent synchronously;
+failed sends raise `ApiError` or `NetworkError` without automatic retries or replay.
 
-`identify()` and `alias()` (including batch calls) return `None` without sending
-requests in audience mode. The client emits a `RuntimeWarning` once when these
-methods are used. HTTP transport adapters mounted on `client.session` remain
-supported.
-
-This is a synchronous server SDK. It does not persist identities or events,
-buffer events, automatically retry requests, or replay failed events in a new
-client. Failed sends raise the existing `ApiError` or `NetworkError`; applications
-can retry explicitly. It has no consent API: applications must gate calls on their
-own consent decisions, and audience mode does not override those decisions.
-
-Audience visitor hashing on the backend uses the request IP and User-Agent.
-With this server SDK, those describe your server and HTTP client, rather than the
-end-user browser. Browser visitor counts therefore cannot be reconstructed
-reliably from these server requests. The SDK does not forward end-user IP or
-User-Agent headers automatically.
+The backend derives audience visitors from the request IP and User-Agent. For this
+server SDK, those identify your server and HTTP client, so these events cannot
+reliably measure distinct browser visitors. End-user request headers are not
+forwarded automatically.
 
 ### Identifying Users
 
