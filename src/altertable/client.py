@@ -4,6 +4,9 @@ from typing import Dict, Any, List, Literal, Optional, Union
 
 TrackingMode = Literal["product", "audience"]
 
+def _without_environment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: value for key, value in payload.items() if key != "environment"}
+
 class AltertableError(Exception):
     pass
 
@@ -19,15 +22,15 @@ class NetworkError(AltertableError):
         self.cause = cause
 
 class Altertable:
-    def __init__(self, api_key: str, server_url: str = "https://api.altertable.ai", environment: str = "production", timeout: int = 10000, *, mode: TrackingMode = "product"):
+    def __init__(self, api_key: str, server_url: str = "https://api.altertable.ai", environment: Optional[str] = None, timeout: int = 10000, *, mode: TrackingMode = "product"):
         """
         Initialize the Altertable client.
 
         :param api_key: API key used to authenticate with the Altertable API.
         :param server_url: Base URL of the Altertable API server.
-        :param environment: Environment name (for example, "production" or "staging").
+        :param environment: Deprecated and ignored. The API key determines the environment.
         :param mode: Collection mode, fixed for this client. Audience mode sends events
-                     without identity or environment fields and ignores identify and alias.
+                     without identity fields and ignores identify and alias.
         :param timeout: Request timeout in milliseconds. This value is converted to seconds
                         before being passed to the underlying `requests` session.
         """
@@ -36,7 +39,10 @@ class Altertable:
         self._mode: TrackingMode = mode
         self.api_key = api_key
         self.server_url = server_url.rstrip("/")
-        self.environment = environment
+        if environment is not None:
+            warnings.warn("The environment is determined by your API key. Remove the `environment` argument.", DeprecationWarning, stacklevel=2)
+        # Kept for existing callers; it no longer controls routing or appears in requests.
+        self.environment = "production" if environment is None else environment
         self.timeout = timeout / 1000.0
         self.session = requests.Session()
         self.session.headers.update({"X-API-Key": self.api_key, "Content-Type": "application/json"})
@@ -51,7 +57,7 @@ class Altertable:
 
     def _apply_mode(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         # The client owns the mode: raw batches and options cannot select another
-        # mode or restore identity and environment fields.
+        # mode or restore identity fields.
         if self._mode == "product":
             return {key: value for key, value in payload.items() if key != "mode"}
         return {
@@ -69,6 +75,8 @@ class Altertable:
         return timestamp
 
     def _post(self, endpoint: str, payload: Union[Dict[str, Any], List[Dict[str, Any]]]):
+        # The API key selects the environment, so the deprecated field is never sent.
+        payload = [_without_environment(record) for record in payload] if isinstance(payload, list) else _without_environment(payload)
         try:
             response = self.session.post(f"{self.server_url}{endpoint}", json=payload, timeout=self.timeout)
             if not response.ok:
@@ -91,7 +99,6 @@ class Altertable:
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
             "event": event,
-            "environment": options.get("environment", self.environment),
             "distinct_id": distinct_id,
             "properties": options.get("properties", {})
         }
@@ -111,7 +118,6 @@ class Altertable:
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
-            "environment": options.get("environment", self.environment),
             "distinct_id": distinct_id,
         }
         if "traits" in options:
@@ -134,7 +140,6 @@ class Altertable:
         options = options or {}
         payload = {
             "timestamp": self._get_timestamp(options.get("timestamp")),
-            "environment": options.get("environment", self.environment),
             "distinct_id": distinct_id,
             "new_user_id": new_user_id,
         }
