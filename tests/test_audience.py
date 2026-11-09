@@ -8,7 +8,9 @@ through an ordinary HTTP transport adapter, including caller-managed retries.
 import copy
 import datetime
 import json
+import threading
 import warnings
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 import requests
@@ -39,6 +41,61 @@ class RecordingAdapter(BaseAdapter):
 
 
 @pytest.fixture
+def cookie_server():
+    requests_seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format, *args):
+            pass
+
+        def _record(self):
+            requests_seen.append(
+                (
+                    self.path,
+                    self.headers.get("Cookie"),
+                    self.headers.get("Cookie2"),
+                    self.headers.get("Authorization"),
+                )
+            )
+
+        def _respond(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+        def do_POST(self):
+            self._record()
+            content_length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(content_length))
+            if payload["event"] == "Redirect":
+                self.send_response(302)
+                self.send_header("Location", "/redirected")
+                self.send_header("Set-Cookie", "server=redirect")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Set-Cookie", "server=sequential")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+        def do_GET(self):
+            self._record()
+            self._respond()
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", requests_seen
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+@pytest.fixture
 def audience():
     client = Altertable("key", environment="ignored", mode="audience")
     adapter = RecordingAdapter()
@@ -62,6 +119,50 @@ def test_track_without_identity(audience):
     payload = adapter.payloads[0]
     assert_audience(payload)
     assert payload["properties"] == {"section": "docs", "$url": None, "$referer": None}
+
+
+def test_audience_transport_does_not_store_or_replay_cookies(cookie_server):
+    server_url, requests_seen = cookie_server
+    client = Altertable("key", server_url=server_url, mode="audience")
+    client.session.headers["Cookie"] = "caller=header"
+    client.session.headers["Cookie2"] = "caller=legacy-header"
+    client.session.headers["Authorization"] = "Bearer caller-token"
+    client.session.cookies.set("caller", "jar", domain="127.0.0.1", path="/")
+
+    client.track("First")
+    client.track("Second")
+
+    assert requests_seen == [("/track", None, None, None), ("/track", None, None, None)]
+    assert not list(client.session.cookies)
+    client.session.close()
+
+
+def test_audience_transport_does_not_replay_redirect_cookies(cookie_server):
+    server_url, requests_seen = cookie_server
+    client = Altertable("key", server_url=server_url, mode="audience")
+
+    client.track("Redirect")
+
+    assert requests_seen == [
+        ("/track", None, None, None),
+        ("/redirected", None, None, None),
+    ]
+    assert not list(client.session.cookies)
+    client.session.close()
+
+
+def test_product_transport_keeps_its_cookie_behavior(cookie_server):
+    server_url, requests_seen = cookie_server
+    client = Altertable("key", server_url=server_url)
+
+    client.track("First", "user")
+    client.track("Second", "user")
+
+    assert requests_seen == [
+        ("/track", None, None, None),
+        ("/track", "server=sequential", None, None),
+    ]
+    client.session.close()
 
 
 def test_single_track_reduces_context_without_mutating_caller(audience):
@@ -95,6 +196,28 @@ def test_single_track_reduces_context_without_mutating_caller(audience):
     assert options == original
     assert "secret" not in json.dumps(payload)
     assert "private-" not in json.dumps(payload)
+
+
+def test_null_properties_are_normalized_without_mutating_scalar_or_batch_input(audience):
+    client, adapter = audience
+    scalar_options = {"properties": None}
+    batch = [{"event": "Batch", "properties": None}]
+    original_scalar_options = copy.deepcopy(scalar_options)
+    original_batch = copy.deepcopy(batch)
+
+    client.track("Scalar", options=scalar_options)
+    client.track(batch)
+
+    scalar_payload = adapter.payloads[0]
+    batch_payload = adapter.payloads[1][0]
+    assert_audience(scalar_payload)
+    assert_audience(batch_payload)
+    assert scalar_payload["event"] == "Scalar"
+    assert batch_payload["event"] == "Batch"
+    assert scalar_payload["properties"] == {"$url": None, "$referer": None}
+    assert batch_payload["properties"] == {"$url": None, "$referer": None}
+    assert scalar_options == original_scalar_options
+    assert batch == original_batch
 
 
 def test_every_batch_event_is_normalized_without_chunking(audience):

@@ -84,6 +84,10 @@ paths can still contain personal information; choose them accordingly.
 
 Gate calls on your application's consent decisions. Events are sent synchronously;
 failed sends raise `ApiError` or `NetworkError` without automatic retries or replay.
+Audience requests do not accept or send cookies, including cookies supplied through
+the client's session. To avoid ambient credentials, they also do not use Requests'
+environment configuration: `.netrc`, proxy, and CA-bundle environment settings are
+ignored. Configure any required proxy or TLS settings directly on `client.session`.
 
 The backend derives audience visitors from the request IP and User-Agent. For this
 server SDK, those identify your server and HTTP client, so these events cannot

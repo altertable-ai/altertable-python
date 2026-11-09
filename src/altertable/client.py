@@ -8,6 +8,29 @@ import requests
 TrackingMode = Literal["product", "audience"]
 
 
+class _AudienceCookieJar(requests.cookies.RequestsCookieJar):
+    """A cookie jar that neither retains response cookies nor sends supplied ones."""
+
+    def set_cookie(self, cookie, *args, **kwargs):
+        return None
+
+
+class _AudienceSession(requests.Session):
+    """HTTP transport for audience collection, which must not carry credentials."""
+
+    def __init__(self):
+        super().__init__()
+        self.cookies = _AudienceCookieJar()
+        # requests otherwise obtains basic authentication from a user's .netrc file.
+        self.trust_env = False
+
+    def send(self, request, **kwargs):
+        # Session.send runs for the original request and each redirect hop.
+        for header in ("Cookie", "Cookie2", "Authorization"):
+            request.headers.pop(header, None)
+        return super().send(request, **kwargs)
+
+
 def _sanitize_url(value: Any, origin_only: bool = False) -> Optional[str]:
     if not isinstance(value, str):
         return None
@@ -76,7 +99,7 @@ class Altertable:
         self.server_url = server_url.rstrip("/")
         self.environment = environment
         self.timeout = timeout / 1000.0
-        self.session = requests.Session()
+        self.session = _AudienceSession() if mode == "audience" else requests.Session()
         self.session.headers.update(
             {"X-API-Key": self.api_key, "Content-Type": "application/json"}
         )
@@ -102,7 +125,8 @@ class Altertable:
         # The client owns collection policy, including for caller-supplied batches.
         if self.mode == "product":
             return {key: value for key, value in payload.items() if key != "mode"}
-        properties = dict(payload.get("properties", {}))
+        properties_value = payload.get("properties", {})
+        properties = {} if properties_value is None else dict(properties_value)
         properties["$url"] = _sanitize_url(properties.get("$url"))
         properties["$referer"] = _sanitize_url(
             properties.get("$referer"), origin_only=True
