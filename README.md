@@ -48,12 +48,19 @@ not impose a client-side batch-size limit.
 
 ```python
 client.track([
-    {"event": "button_clicked", "distinct_id": "user_123", "environment": "production"},
-    {"event": "checkout_started", "distinct_id": "user_123", "environment": "production"},
+    {"event": "button_clicked", "distinct_id": "user_123"},
+    {"event": "checkout_started", "distinct_id": "user_123"},
 ])
 ```
 
 Pass arrays to `identify` and `alias` for the same pass-through behavior.
+
+### Environment
+
+The API key selects the Product Analytics environment. The `environment`
+argument is deprecated and ignored, and `environment` fields in options and
+batches are never sent. Replace unbound legacy API keys with environment-bound
+keys before upgrading.
 
 ### Audience measurement
 
