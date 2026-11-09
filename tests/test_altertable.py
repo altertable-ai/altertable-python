@@ -33,9 +33,8 @@ def test_alias(client):
     )
     assert response.get("ok") is True
 
-def test_environment_is_deprecated_and_never_sent_from_product_requests():
-    with pytest.deprecated_call(match="environment is determined by your API key"):
-        client = Altertable("test_pk_abc123", MOCK_BASE_URL, "staging")
+def test_environment_is_ignored_and_never_sent_from_product_requests():
+    client = Altertable("test_pk_abc123", MOCK_BASE_URL, "staging")
     response = Mock(ok=True)
     response.json.return_value = {"ok": True}
     client.session.post = Mock(return_value=response)
@@ -60,7 +59,6 @@ def test_environment_is_deprecated_and_never_sent_from_product_requests():
     assert payloads[1]["traits"]["environment"] == "trait-business-value"
     assert track_options == original_track_options
     assert identify_options == original_identify_options
-    assert client.environment == "staging"
 
 
 def test_raw_batches_strip_environment_without_mutating_caller_payloads():

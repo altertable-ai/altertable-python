@@ -28,7 +28,7 @@ class Altertable:
 
         :param api_key: API key used to authenticate with the Altertable API.
         :param server_url: Base URL of the Altertable API server.
-        :param environment: Deprecated and ignored. The API key determines the environment.
+        :param environment: Ignored; kept so existing calls keep working. The API key determines the environment.
         :param mode: Collection mode, fixed for this client. Audience mode sends events
                      without identity fields and ignores identify and alias.
         :param timeout: Request timeout in milliseconds. This value is converted to seconds
@@ -39,10 +39,6 @@ class Altertable:
         self._mode: TrackingMode = mode
         self.api_key = api_key
         self.server_url = server_url.rstrip("/")
-        if environment is not None:
-            warnings.warn("The environment is determined by your API key. Remove the `environment` argument.", DeprecationWarning, stacklevel=2)
-        # Kept for existing callers; it no longer controls routing or appears in requests.
-        self.environment = "production" if environment is None else environment
         self.timeout = timeout / 1000.0
         self.session = requests.Session()
         self.session.headers.update({"X-API-Key": self.api_key, "Content-Type": "application/json"})

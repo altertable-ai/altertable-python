@@ -22,8 +22,7 @@ def sent_payloads(client):
 
 
 def test_track_sends_only_audience_fields_and_leaves_properties_unchanged():
-    with pytest.deprecated_call():
-        client = make_client(environment="ignored", mode="audience")
+    client = make_client(environment="ignored", mode="audience")
     properties = {
         "section": "docs",
         "environment": "business-value",
