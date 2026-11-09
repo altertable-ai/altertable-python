@@ -54,45 +54,21 @@ client.track([
 ```
 
 Pass arrays to `identify` and `alias` for the same pass-through behavior.
-The client owns the collection mode: top-level `mode` fields in product batches
-are removed before sending, so a batch cannot switch to audience processing.
 
 ### Audience measurement
 
-Use an environment-bound Product Analytics API key and `mode="audience"` to collect events without client identity fields:
+With an environment-bound API key, pass `mode="audience"` to send events without
+identity or environment fields:
 
 ```python
 audience = Altertable("your_api_key", mode="audience")
-audience.track(
-    "Docs Opened",
-    options={"properties": {"$url": "https://example.com/docs?source=email"}},
-)
-audience.track([
-    {"event": "Install Copied", "properties": {"package": "python"}},
-])
+audience.track("docs_opened", options={"properties": {"page": "install"}})
 ```
 
-Product mode is the default. Mode is fixed for each client; create a new client to
-change it. Audience events omit user, anonymous, device, session, and environment
-fields, including caller-supplied batch fields. The API key selects the environment;
-legacy unbound keys cannot be used. `identify()` and `alias()` return `None` without
-sending requests and emit a `RuntimeWarning` once per client.
-
-Audience mode removes `$viewport`, reduces `$url` to HTTP(S) origin plus path, and
-reduces `$referer` to origin. Invalid URLs become `None`. Custom properties and URL
-paths can still contain personal information; choose them accordingly.
-
-Gate calls on your application's consent decisions. Events are sent synchronously;
-failed sends raise `ApiError` or `NetworkError` without automatic retries or replay.
-Audience requests do not accept or send cookies, including cookies supplied through
-the client's session. To avoid ambient credentials, they also do not use Requests'
-environment configuration: `.netrc`, proxy, and CA-bundle environment settings are
-ignored. Configure any required proxy or TLS settings directly on `client.session`.
-
-The backend derives audience visitors from the request IP and User-Agent. For this
-server SDK, those identify your server and HTTP client, so these events cannot
-reliably measure distinct browser visitors. End-user request headers are not
-forwarded automatically.
+Mode is fixed for each client. Audience events contain only `mode`, `event`,
+`timestamp`, and `properties`, including in batches; `identify()` and `alias()`
+return `None` without sending a request. Product clients drop any top-level
+`mode` field from batch entries.
 
 ### Identifying Users
 

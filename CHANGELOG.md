@@ -4,7 +4,7 @@
 
 ### Features
 
-* add audience collection mode with identity suppression, sanitized single and batch events, and cookie- and ambient-credential-isolated transport
+* add audience collection mode
 
 * **api:** add native server batch overloads and align with client specs v0.13.0
 
