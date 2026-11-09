@@ -55,6 +55,21 @@ client.track([
 
 Pass arrays to `identify` and `alias` for the same pass-through behavior.
 
+### Audience measurement
+
+With an environment-bound API key, pass `mode="audience"` to send events without
+identity or environment fields:
+
+```python
+audience = Altertable("your_api_key", mode="audience")
+audience.track("docs_opened", options={"properties": {"page": "install"}})
+```
+
+Mode is fixed for each client. Audience events contain only `mode`, `event`,
+`timestamp`, and `properties`, including in batches; `identify()` and `alias()`
+return `None` without sending a request. Product clients drop any top-level
+`mode` field from batch entries.
+
 ### Identifying Users
 
 ```python

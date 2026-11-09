@@ -4,6 +4,8 @@
 
 ### Features
 
+* add audience collection mode
+
 * **api:** add native server batch overloads and align with client specs v0.13.0
 
 ## [0.2.0](https://github.com/altertable-ai/altertable-python/compare/altertable-v0.1.0...altertable-v0.2.0) (2026-03-09)
