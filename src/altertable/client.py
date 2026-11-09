@@ -1,5 +1,4 @@
 import datetime
-import warnings
 import requests
 from typing import Dict, Any, List, Literal, Optional, Union
 
@@ -35,7 +34,6 @@ class Altertable:
         if mode not in ("product", "audience"):
             raise ValueError('Invalid tracking mode. Use "product" or "audience".')
         self._mode: TrackingMode = mode
-        self._identity_warning_emitted = False
         self.api_key = api_key
         self.server_url = server_url.rstrip("/")
         self.environment = environment
@@ -49,12 +47,7 @@ class Altertable:
         return self._mode
 
     def _ignore_identity(self) -> bool:
-        if self._mode != "audience":
-            return False
-        if not self._identity_warning_emitted:
-            warnings.warn("Altertable identify() and alias() calls are ignored in audience mode.", RuntimeWarning, stacklevel=3)
-            self._identity_warning_emitted = True
-        return True
+        return self._mode == "audience"
 
     def _apply_mode(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         # The client owns the mode: raw batches and options cannot select another

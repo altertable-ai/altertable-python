@@ -95,19 +95,16 @@ def test_raw_batch_cannot_restore_identity_or_select_product_mode():
     assert events == original
 
 
-def test_identify_and_alias_are_ignored_and_warn_once():
+def test_identify_and_alias_are_ignored_silently():
     client = make_client(mode="audience")
 
-    with warnings.catch_warnings(record=True) as recorded:
-        warnings.simplefilter("always")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         assert client.identify("user", {"traits": {"email": "private"}}) is None
         assert client.alias("user") is None
         assert client.identify([{"distinct_id": "user"}]) is None
         assert client.alias([{"distinct_id": "user", "new_user_id": "other"}]) is None
 
-    assert [str(warning.message) for warning in recorded] == [
-        "Altertable identify() and alias() calls are ignored in audience mode."
-    ]
     client.session.post.assert_not_called()
 
 
